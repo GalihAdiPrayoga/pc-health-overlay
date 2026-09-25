@@ -149,6 +149,9 @@ class HealthOverlayApp:
         self.root.overrideredirect(True)
         self.root.attributes('-topmost', True)
 
+        # Visibility State
+        self.visible = True
+
         # Pure transparent background
         self.trans_color = '#010101'
         self.root.config(bg=self.trans_color)
@@ -190,6 +193,9 @@ class HealthOverlayApp:
         self.tray_icon = None
         self.start_system_tray()
 
+        # Global Hotkey (Ctrl + Shift + H)
+        self.start_global_hotkey()
+
         # GUI Update Loop
         self.update_ui()
 
@@ -216,6 +222,8 @@ class HealthOverlayApp:
             self.y = y_off
 
     def apply_win32_styles(self):
+        if not self.visible:
+            return
         hwnd = self.root.winfo_id()
         GWL_EXSTYLE = -20
         WS_EX_LAYERED = 0x00080000
@@ -237,6 +245,41 @@ class HealthOverlayApp:
         SWP_SHOWWINDOW = 0x0040
         ctypes.windll.user32.SetWindowPos(hwnd, HWND_TOPMOST, self.x, self.y, self.width, self.height, SWP_NOACTIVATE | SWP_SHOWWINDOW)
 
+    def toggle_visibility(self):
+        self.visible = not self.visible
+        if self.visible:
+            self.root.deiconify()
+            self.apply_win32_styles()
+            self.update_ui()
+        else:
+            self.root.withdraw()
+        
+        # Update tray menu state
+        if self.tray_icon:
+            self.tray_icon.update_menu()
+
+    def start_global_hotkey(self):
+        def hotkey_worker():
+            user32 = ctypes.windll.user32
+            HOTKEY_ID = 101
+            MOD_CONTROL = 0x0002
+            MOD_SHIFT = 0x0004
+            VK_H = 0x48  # 'H' key
+
+            if user32.RegisterHotKey(None, HOTKEY_ID, MOD_CONTROL | MOD_SHIFT, VK_H):
+                msg = wintypes.MSG()
+                while self.running:
+                    # Non-blocking or msg pump
+                    if user32.GetMessageW(ctypes.byref(msg), None, 0, 0) != 0:
+                        if msg.message == 0x0312:  # WM_HOTKEY
+                            self.root.after(0, self.toggle_visibility)
+                        user32.TranslateMessage(ctypes.byref(msg))
+                        user32.DispatchMessageW(ctypes.byref(msg))
+                user32.UnregisterHotKey(None, HOTKEY_ID)
+
+        t = threading.Thread(target=hotkey_worker, daemon=True)
+        t.start()
+
     def on_config_updated(self, new_config):
         self.config = new_config
         self.calculate_geometry()
@@ -257,6 +300,11 @@ class HealthOverlayApp:
         return self.config.get("color_normal", "#f0f6fc")
 
     def update_ui(self):
+        if not self.visible:
+            refresh_ms = self.config.get("refresh_rate_ms", 1000)
+            self.root.after(refresh_ms, self.update_ui)
+            return
+
         self.canvas.delete("all")
 
         c_cpu = self.get_color(self.sensors.cpu_pct, 75, 90)
@@ -339,6 +387,9 @@ class HealthOverlayApp:
         def on_open_settings(icon, item):
             self.root.after(0, self.open_settings)
 
+        def on_toggle(icon, item):
+            self.root.after(0, self.toggle_visibility)
+
         def on_set_pos(pos):
             def handler(icon, item):
                 self.root.after(0, lambda: self.set_position(pos))
@@ -355,6 +406,7 @@ class HealthOverlayApp:
             self.root.after(0, self.root.destroy)
 
         menu = pystray.Menu(
+            pystray.MenuItem("👁️ Tampilkan / Sembunyikan (Ctrl+Shift+H)", on_toggle, checked=lambda item: self.visible),
             pystray.MenuItem("⚙️ Konfigurasi / Settings", on_open_settings, default=True),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("📍 Posisi Layar", pystray.Menu(

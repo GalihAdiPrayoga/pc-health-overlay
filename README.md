@@ -8,6 +8,9 @@ Designed with a clean, minimal Steam-like HUD aesthetic that floats transparentl
 ## ✨ Features
 
 - **Floating & Always on Top (`HWND_TOPMOST`):** Stays visible while switching across Chrome, VS Code, Discord, games, and full-screen apps.
+- **Global Shortcut Hide/Show (`Ctrl + Shift + H`):** Sembunyikan atau tampilkan overlay instan dari mana saja tanpa perlu membuka aplikasi.
+- **System Tray Context Menu:** Ikon di pojok kanan bawah (Taskbar Tray) untuk akses cepat ke pengaturan posisi, format RAM, dan tombol Show/Hide.
+- **Interactive Configuration GUI:** Jendela pengaturan modern untuk mengatur ukuran font, metrik yang aktif, format RAM, dan posisi layar secara real-time.
 - **True Click-Through (`WS_EX_TRANSPARENT`):** Mouse clicks pass directly through to whatever window is underneath.
 - **Pure Transparent Text:** Zero background box; rendered using Windows DWM ColorKey layering (`SetLayeredWindowAttributes`).
 - **Live Hardware Sensors:**
